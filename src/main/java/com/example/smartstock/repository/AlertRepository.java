@@ -1,0 +1,10 @@
+package com.example.smartstock.repository;
+
+import com.example.smartstock.model.Alert;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+
+public interface AlertRepository extends JpaRepository<Alert, Long> {
+    List<Alert> findByResolvedFalse();
+}
