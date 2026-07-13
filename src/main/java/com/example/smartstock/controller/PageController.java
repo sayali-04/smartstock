@@ -18,4 +18,15 @@ public class PageController {
         model.addAttribute("products", productService.getAllProducts());
         return "products";
     }
+
+    @GetMapping("/stock-page")
+    public String showStockPage(Model model) {
+        model.addAttribute("products", productService.getAllProducts());
+        return "stock";
+    }
+
+    @GetMapping("/alerts-page")
+    public String showAlertsPage() {
+        return "alerts";
+    }
 }

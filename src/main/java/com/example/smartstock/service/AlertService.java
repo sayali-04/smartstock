@@ -31,16 +31,24 @@ public class AlertService {
         LocalDate today = LocalDate.now();
         LocalDate warningWindow = today.plusDays(3); // flag anything expiring within 3 days
 
+        List<Alert> existingAlerts = alertRepository.findByResolvedFalse();
+
         for (StockBatch batch : activeBatches) {
             if (!batch.getExpiryDate().isAfter(warningWindow)) {
-                Alert alert = new Alert();
-                alert.setProduct(batch.getProduct());
-                alert.setBatch(batch);
-                alert.setType(Alert.AlertType.EXPIRY_SOON);
-                alert.setMessage(batch.getProduct().getName() + " batch expiring on " + batch.getExpiryDate());
-                alert.setResolved(false);
-                alert.setCreatedAt(LocalDateTime.now());
-                alertRepository.save(alert);
+
+                boolean alertAlreadyExists = existingAlerts.stream()
+                        .anyMatch(a -> a.getBatch() != null && a.getBatch().getId().equals(batch.getId()));
+
+                if (!alertAlreadyExists) {
+                    Alert alert = new Alert();
+                    alert.setProduct(batch.getProduct());
+                    alert.setBatch(batch);
+                    alert.setType(Alert.AlertType.EXPIRY_SOON);
+                    alert.setMessage(batch.getProduct().getName() + " batch expiring on " + batch.getExpiryDate());
+                    alert.setResolved(false);
+                    alert.setCreatedAt(LocalDateTime.now());
+                    alertRepository.save(alert);
+                }
             }
         }
     }

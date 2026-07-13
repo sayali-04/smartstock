@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>SmartStock — Stock Batches</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f4f4f4; }
+        h1 { color: #2c3e50; }
+        h3 { margin-top: 0; }
+        .card { background: white; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #2c3e50; color: white; }
+        tr:hover { background: #f1f1f1; }
+        form { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+        form input, form select {
+            padding: 8px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        form button {
+            padding: 8px 16px;
+            background: #2c3e50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        form button:hover { background: #1a252f; }
+        .deduct-btn { background: #c0392b; }
+        .deduct-btn:hover { background: #922b21; }
+        nav { margin-bottom: 20px; }
+        nav a { margin-right: 15px; color: #2c3e50; font-weight: bold; text-decoration: none; }
+    </style>
+</head>
+<body>
+<nav>
+    <a href="/products-page">Products</a>
+    <a href="/stock-page">Stock Batches</a>
+    <a href="/alerts-page">Alerts</a>
+</nav>
+
+<h1>SmartStock — Stock Batches</h1>
+
+<div class="card">
+    <h3>Add Stock Batch</h3>
+    <form id="addStockForm">
+        <select id="addProductId" required>
+            <option value="">Select Product</option>
+            <option th:each="product : ${products}" th:value="${product.id}" th:text="${product.name}"></option>
+        </select>
+        <input type="number" id="addQuantity" placeholder="Quantity" step="0.1" required>
+        <input type="date" id="addExpiryDate" required>
+        <button type="submit">Add Stock</button>
+    </form>
+    <p id="addStatusMessage"></p>
+</div>
+
+<div class="card">
+    <h3>Deduct Stock (FIFO)</h3>
+    <form id="deductStockForm">
+        <select id="deductProductId" required>
+            <option value="">Select Product</option>
+            <option th:each="product : ${products}" th:value="${product.id}" th:text="${product.name}"></option>
+        </select>
+        <input type="number" id="deductQuantity" placeholder="Quantity to deduct" step="0.1" required>
+        <button type="submit" class="deduct-btn">Deduct Stock</button>
+    </form>
+    <p id="deductStatusMessage"></p>
+</div>
+
+<div class="card">
+    <h3>View Active Batches</h3>
+    <form id="viewBatchesForm">
+        <select id="viewProductId" required>
+            <option value="">Select Product</option>
+            <option th:each="product : ${products}" th:value="${product.id}" th:text="${product.name}"></option>
+        </select>
+        <button type="submit">View Batches</button>
+    </form>
+
+    <table id="batchesTable" style="display:none;">
+        <thead>
+        <tr>
+            <th>Batch ID</th>
+            <th>Quantity</th>
+            <th>Expiry Date</th>
+            <th>Added Date</th>
+            <th>Status</th>
+        </tr>
+        </thead>
+        <tbody id="batchesTableBody"></tbody>
+    </table>
+</div>
+
+<script>
+    const authHeader = 'Basic ' + btoa('admin:admin123');
+
+    // Add Stock
+    document.getElementById('addStockForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const productId = document.getElementById('addProductId').value;
+        const quantity = document.getElementById('addQuantity').value;
+        const expiryDate = document.getElementById('addExpiryDate').value;
+
+        fetch(`/api/stock/add?productId=${productId}&quantity=${quantity}&expiryDate=${expiryDate}`, {
+            method: 'POST',
+            headers: { 'Authorization': authHeader }
+        })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('addStatusMessage').style.color = 'green';
+                document.getElementById('addStatusMessage').innerText = 'Stock batch added successfully (Batch ID: ' + data.id + ')';
+                document.getElementById('addStockForm').reset();
+            })
+            .catch(() => {
+                document.getElementById('addStatusMessage').style.color = 'red';
+                document.getElementById('addStatusMessage').innerText = 'Error adding stock';
+            });
+    });
+
+    // Deduct Stock
+    document.getElementById('deductStockForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const productId = document.getElementById('deductProductId').value;
+        const quantity = document.getElementById('deductQuantity').value;
+
+        fetch(`/api/stock/deduct?productId=${productId}&quantity=${quantity}`, {
+            method: 'POST',
+            headers: { 'Authorization': authHeader }
+        })
+            .then(response => response.text())
+            .then(message => {
+                document.getElementById('deductStatusMessage').style.color = message.includes('Warning') ? 'orange' : 'green';
+                document.getElementById('deductStatusMessage').innerText = message;
+                document.getElementById('deductStockForm').reset();
+            })
+            .catch(() => {
+                document.getElementById('deductStatusMessage').style.color = 'red';
+                document.getElementById('deductStatusMessage').innerText = 'Error deducting stock';
+            });
+    });
+
+    // View Batches
+    document.getElementById('viewBatchesForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const productId = document.getElementById('viewProductId').value;
+
+        fetch(`/api/stock/product/${productId}`, {
+            headers: { 'Authorization': authHeader }
+        })
+            .then(response => response.json())
+            .then(batches => {
+                const tbody = document.getElementById('batchesTableBody');
+                tbody.innerHTML = '';
+                batches.forEach(batch => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `<td>${batch.id}</td><td>${batch.quantity}</td><td>${batch.expiryDate}</td><td>${batch.addedDate}</td><td>${batch.status}</td>`;
+                    tbody.appendChild(row);
+                });
+                document.getElementById('batchesTable').style.display = batches.length ? 'table' : 'none';
+                if (!batches.length) {
+                    alert('No active batches for this product.');
+                }
+            })
+            .catch(() => alert('Error fetching batches'));
+    });
+</script>
+</body>
+</html>

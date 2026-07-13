@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>SmartStock — Alerts</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f4f4f4; }
+        h1 { color: #2c3e50; }
+        .card { background: white; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        table { width: 100%; border-collapse: collapse; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #2c3e50; color: white; }
+        tr:hover { background: #f1f1f1; }
+        button {
+            padding: 8px 16px;
+            background: #2c3e50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover { background: #1a252f; }
+        nav { margin-bottom: 20px; }
+        nav a { margin-right: 15px; color: #2c3e50; font-weight: bold; text-decoration: none; }
+        .badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+        }
+        .badge-expiry { background: #e67e22; }
+        .badge-lowstock { background: #c0392b; }
+    </style>
+</head>
+<body>
+<nav>
+    <a href="/products-page">Products</a>
+    <a href="/stock-page">Stock Batches</a>
+    <a href="/alerts-page">Alerts</a>
+</nav>
+
+<h1>SmartStock — Active Alerts</h1>
+
+<div class="card">
+    <button id="runCheckBtn">Run Expiry Check Now</button>
+    <button id="refreshBtn" style="margin-left: 10px; background: #16a085;">Refresh Alerts</button>
+    <p id="statusMessage"></p>
+</div>
+
+<table>
+    <thead>
+    <tr>
+        <th>Alert ID</th>
+        <th>Product</th>
+        <th>Type</th>
+        <th>Message</th>
+        <th>Created At</th>
+    </tr>
+    </thead>
+    <tbody id="alertsTableBody">
+    <tr><td colspan="5">Loading alerts...</td></tr>
+    </tbody>
+</table>
+
+<script>
+    const authHeader = 'Basic ' + btoa('admin:admin123');
+
+    function loadAlerts() {
+        fetch('/api/alerts', { headers: { 'Authorization': authHeader } })
+            .then(response => response.json())
+            .then(alerts => {
+                const tbody = document.getElementById('alertsTableBody');
+                tbody.innerHTML = '';
+
+                if (alerts.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5">No active alerts right now.</td></tr>';
+                    return;
+                }
+
+                alerts.forEach(alert => {
+                    const badgeClass = alert.type === 'EXPIRY_SOON' ? 'badge-expiry' : 'badge-lowstock';
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                            <td>${alert.id}</td>
+                            <td>${alert.product.name}</td>
+                            <td><span class="badge ${badgeClass}">${alert.type}</span></td>
+                            <td>${alert.message}</td>
+                            <td>${alert.createdAt}</td>
+                        `;
+                    tbody.appendChild(row);
+                });
+            })
+            .catch(() => {
+                document.getElementById('alertsTableBody').innerHTML = '<tr><td colspan="5">Error loading alerts.</td></tr>';
+            });
+    }
+
+    document.getElementById('runCheckBtn').addEventListener('click', function() {
+        fetch('/api/alerts/run-check', {
+            method: 'POST',
+            headers: { 'Authorization': authHeader }
+        })
+            .then(response => response.text())
+            .then(message => {
+                document.getElementById('statusMessage').style.color = 'green';
+                document.getElementById('statusMessage').innerText = message;
+                loadAlerts();
+            })
+            .catch(() => {
+                document.getElementById('statusMessage').style.color = 'red';
+                document.getElementById('statusMessage').innerText = 'Error running check';
+            });
+    });
+
+    document.getElementById('refreshBtn').addEventListener('click', function() {
+        loadAlerts();
+        document.getElementById('statusMessage').style.color = '#16a085';
+        document.getElementById('statusMessage').innerText = 'Alerts refreshed at ' + new Date().toLocaleTimeString();
+    });
+
+    // Load alerts automatically when page opens
+    loadAlerts();
+</script>
+</body>
+</html>
