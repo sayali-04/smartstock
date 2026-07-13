@@ -13,6 +13,11 @@ public class PageController {
     @Autowired
     private ProductService productService;
 
+    @GetMapping("/")
+    public String home() {
+        return "redirect:/products-page";
+    }
+
     @GetMapping("/products-page")
     public String showProductsPage(Model model) {
         model.addAttribute("products", productService.getAllProducts());
